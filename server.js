@@ -15,7 +15,17 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'virtable-super-secret-key-13579';
+const defaultSecret = 'virtable-super-secret-key-13579';
+const JWT_SECRET = process.env.JWT_SECRET || defaultSecret;
+
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === defaultSecret) {
+  console.error('\n======================================================================');
+  console.error('[Security Critical Error] Running in PRODUCTION mode without a custom JWT_SECRET set!');
+  console.error('For security, the server will refuse to start.');
+  console.error('Please configure your production environment variables.');
+  console.error('======================================================================\n');
+  process.exit(1);
+}
 
 // 1. Predefined Email Whitelist
 const ALLOWED_DEPT_EMAILS = [
@@ -33,7 +43,7 @@ app.use(express.json());
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Initialize SQLite database
-const dbPath = path.join(process.cwd(), 'database.sqlite');
+const dbPath = process.env.DB_PATH || path.join(process.cwd(), 'database.sqlite');
 console.log(`[Database] Building / opening sqlite file at: ${dbPath}`);
 
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -132,9 +142,10 @@ async function initializeSchema() {
 
     console.log('[Database System] Tables created and certified.');
 
-    // Seed test accounts and initial records if database is empty
+    // Seed test accounts and initial records if database is empty and seeding is requested
     const userCount = await dbGet("SELECT COUNT(*) as count FROM users");
-    if (userCount.count === 0) {
+    const shouldSeed = process.env.SEED_DATABASE === 'true';
+    if (userCount.count === 0 && shouldSeed) {
       console.log('[Database Seeding] Seeding initial department records...');
 
       // Seed Users
