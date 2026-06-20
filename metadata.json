@@ -1,0 +1,6 @@
+{
+  "name": "Virtable",
+  "description": "Collaborative departmental discussion platform with intelligent summary generation and anonymity filters for academics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

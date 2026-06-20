@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtable - Collaborative Academic Platform</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased">
+
+  <!-- Header Section -->
+  <header class="bg-white/95 backdrop-blur-md text-slate-900 shadow-sm border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl border border-indigo-100 flex items-center justify-center">
+          <i data-lucide="layers" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">Virtable</h1>
+          <p class="text-xs text-slate-500 font-medium">Departmental Discovery Space</p>
+        </div>
+      </div>
+      
+      <!-- Auth Status area -->
+      <div id="headerAuthArea" class="flex items-center space-x-4">
+        <!-- Logged In profile info populated programmatically -->
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Grid Area -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Toast Notification Banner -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 transition-all duration-300 bg-white border border-slate-200 text-slate-800 px-5 py-3 rounded-xl shadow-lg flex items-center space-x-3 max-w-md">
+      <span id="toastIcon" class="text-emerald-500"><i data-lucide="check-circle" class="w-5 h-5"></i></span>
+      <p id="toastMessage" class="text-sm font-medium"></p>
+    </div>
+
+    <!-- VIEW 1: AUTHENTICATION SCREEN -->
+    <section id="authSection" class="hidden max-w-4xl mx-auto my-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+      
+      <!-- Invitation Column -->
+      <div class="md:col-span-12 lg:col-span-5 bg-gradient-to-br from-indigo-50 via-slate-50 to-indigo-100/50 text-slate-800 p-8 rounded-3xl flex flex-col justify-between shadow-sm border border-slate-200">
+        <div>
+          <div class="inline-block bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full text-xs font-semibold text-indigo-700 uppercase tracking-widest mb-6">
+            IIT Bombay CSE
+          </div>
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900 mb-4">Unified Discussion Engine</h2>
+          <p id="auth-welcome-desc" class="text-slate-600 text-sm leading-relaxed mb-6">
+            Virtable is our custom collaborative departmental ecosystem. Create anonymous <strong class="text-indigo-650 font-semibold">Disco Tables</strong> to aggregate muddy points, participate in transparent academic forums, and harness integrated local AI metrics.
+          </p>
+        </div>
+
+        <div class="bg-indigo-50/50 border border-indigo-100 p-5 rounded-2xl">
+          <div class="flex items-center space-x-2 text-indigo-700 font-semibold text-xs uppercase tracking-wider mb-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-indigo-600"></i>
+            <span>Departmental Domain Check:</span>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Please log in or register using your standard IITB credentials: <strong>25MDDDD@iitb.ac.in</strong> or faculty address.
+          </p>
+        </div>
+      </div>
+
+      <!-- Input Forms Column -->
+      <div class="md:col-span-12 lg:col-span-7 bg-white p-8 sm:p-10 rounded-3xl shadow-sm border border-slate-200">
+        
+        <!-- Tab Switches -->
+        <div class="flex border-b border-slate-200 mb-8">
+          <button id="toggleLoginBtn" onclick="switchAuthTab('login')" class="flex-1 pb-4 text-center border-b-2 border-indigo-600 text-indigo-600 font-semibold text-base transition">
+            Sign In to Virtable
+          </button>
+          <button id="toggleRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 pb-4 text-center border-b-2 border-transparent text-slate-400 font-medium text-base transition hover:text-slate-600">
+            Create Departmental ID
+          </button>
+        </div>
+
+        <!-- ERROR BANNER -->
+        <div id="authErrorBanner" class="hidden bg-rose-50 border-l-4 border-rose-500 text-rose-800 p-4 rounded-xl mb-6 flex items-start space-x-3">
+          <i data-lucide="alert-triangle" class="w-5 h-5 mt-0.5 flex-shrink-0"></i>
+          <div>
+            <p class="text-sm font-semibold">Authentication Denied</p>
+            <p id="authErrorText" class="text-xs mt-1 text-rose-700"></p>
+          </div>
+        </div>
+
+        <!-- FORM: LOGIN -->
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Departmental Email Address</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <i data-lucide="mail" class="w-5 h-5"></i>
+              </span>
+              <input type="email" id="loginEmail" required class="pl-10 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="e.g. 25M1234@iitb.ac.in">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Security Password</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+              </span>
+              <input type="password" id="loginPassword" required class="pl-10 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="••••••••">
+            </div>
+          </div>
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-6 rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 flex justify-center items-center space-x-2 cursor-pointer mt-4">
+            <span>Unlock Workspace</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <!-- FORM: REGISTER -->
+        <form id="registerForm" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-5">
+          <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mb-2">
+            <h4 class="text-xs font-bold text-indigo-900 flex items-center space-x-1">
+              <i data-lucide="shield-check" class="w-4 h-4 text-indigo-600"></i>
+              <span>IITB Domain Restriction Active</span>
+            </h4>
+            <p class="text-[11px] text-slate-650 mt-1">
+              For security, signup emails are strictly vetted against our whitelisted domain credentials. Registrations outside the whitelist fail automatically.
+            </p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <i data-lucide="user" class="w-5 h-5"></i>
+              </span>
+              <input type="text" id="registerName" required class="pl-10 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="e.g. Student Delta">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">White-listed Email</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <i data-lucide="mail" class="w-5 h-5"></i>
+              </span>
+              <input type="email" id="registerEmail" required class="pl-10 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="e.g. 25M1234@iitb.ac.in">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Password</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+              </span>
+              <input type="password" id="registerPassword" required class="pl-10 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="••••••••">
+            </div>
+          </div>
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-6 rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 flex justify-center items-center space-x-2 cursor-pointer mt-4">
+            <span>Form Departmental Profile</span>
+            <i data-lucide="check" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+      </div>
+    </section>
+
+    <!-- VIEW 2: ACCREDITED USER APP INTERFACE -->
+    <section id="appSection" class="hidden space-y-8">
+      
+      <!-- Top Overview Panel: Controls & Creation -->
+      <div id="overviewPanel" class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Departmental Workspace</h2>
+          <p class="text-slate-500 text-sm">Join active tables, clarify misunderstandings, or configure pedagogical analysis dashboards.</p>
+        </div>
+        <div class="flex items-center space-x-3 w-full md:w-auto">
+          <!-- Button: Open Dashboard View -->
+          <button onclick="toggleFacultyDashboardView()" id="dashboardToggleBtn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition flex items-center space-x-2 flex-1 md:flex-initial cursor-pointer border border-indigo-100">
+            <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+            <span>Professor Gap Panel</span>
+          </button>
+          
+          <!-- Button: Trigger new Creation Modal -->
+          <button onclick="openCreateDiscoTableModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition shadow-md flex items-center space-x-2 flex-1 md:flex-initial cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Create a Disco Table</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PROFESSOR DASHBOARD VIEW (Collapsible, shown/hidden dynamically) -->
+      <div id="facultyDashboardPanel" class="hidden bg-white text-slate-800 p-8 rounded-3xl shadow-sm space-y-8 border border-slate-200">
+        <div class="flex justify-between items-center border-b border-slate-200 pb-5">
+          <div class="flex items-center space-x-3">
+            <div class="bg-indigo-50 p-2.5 rounded-xl border border-indigo-100 flex items-center justify-center">
+              <i data-lucide="award" class="w-6 h-6 text-indigo-600"></i>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold tracking-tight text-slate-900">Faculty Analytics Panel</h3>
+              <p class="text-xs text-slate-500 font-medium">Under supervision of <span class="font-bold underline text-indigo-650">prof@iitb.ac.in</span></p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <!-- Background Worker Run Override -->
+            <button onclick="triggerBackgroundWorkerManual()" id="manualWorkerBtn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5 cursor-pointer">
+              <span id="manualWorkerSpinner" class="hidden"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i></span>
+              <span id="manualWorkerIcon"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></span>
+              <span>Spin AI Worker Columns</span>
+            </button>
+            <button onclick="toggleFacultyDashboardView()" class="text-slate-400 hover:text-slate-600 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Box Left: Hottest Disco Tables (12 columns on mobile, 5 on lg) -->
+          <div class="lg:col-span-5 bg-slate-50 border border-slate-250 p-6 rounded-2xl flex flex-col space-y-4">
+            <div class="flex items-center space-x-2 border-b border-slate-200 pb-3">
+              <i data-lucide="flame" class="w-5 h-5 text-amber-500"></i>
+              <h4 class="font-bold text-sm tracking-wide uppercase text-slate-700">Hottest Active Tables</h4>
+            </div>
+            
+            <div id="hotTablesList" class="flex-grow space-y-3 overflow-y-auto max-h-[300px] pr-2 font-sans">
+              <!-- Dynamically rendered statistics -->
+            </div>
+          </div>
+
+          <!-- Box Right: Educational Gap Analysis Container -->
+          <div class="lg:col-span-7 bg-slate-50 border border-slate-250 p-6 rounded-2xl flex flex-col space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="brain-circuit" class="w-5 h-5 text-indigo-650"></i>
+                <h4 class="font-bold text-sm tracking-wide uppercase text-slate-700">Conceptual Gap Analysis</h4>
+              </div>
+              <span class="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-wider">POWERED BY QWEN2.5</span>
+            </div>
+
+            <div id="gapAnalysisBox" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+              
+              <!-- Category A: Common Misconceptions -->
+              <div class="bg-rose-50/50 border border-rose-100 p-4.5 rounded-xl flex flex-col space-y-3">
+                <div class="flex items-center space-x-2 text-rose-700 text-xs font-bold uppercase tracking-wider">
+                  <span class="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                  <span>Common Gaps</span>
+                </div>
+                <ul id="misconceptionList" class="text-xs text-rose-800 space-y-2 leading-relaxed flex-grow list-disc list-inside">
+                  <!-- Dynamic misconceptions -->
+                </ul>
+              </div>
+
+              <!-- Category B: Missing Foundations -->
+              <div class="bg-amber-50/50 border border-amber-100 p-4.5 rounded-xl flex flex-col space-y-3">
+                <div class="flex items-center space-x-2 text-amber-700 text-xs font-bold uppercase tracking-wider">
+                  <span class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Missing Bases</span>
+                </div>
+                <ul id="foundationsList" class="text-xs text-amber-800 space-y-2 leading-relaxed flex-grow list-disc list-inside">
+                  <!-- Dynamic concepts -->
+                </ul>
+              </div>
+
+              <!-- Category C: Recommended Curricular Fixes -->
+              <div class="bg-emerald-50/50 border border-emerald-100 p-4.5 rounded-xl flex flex-col space-y-3">
+                <div class="flex items-center space-x-2 text-emerald-700 text-xs font-bold uppercase tracking-wider">
+                  <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Class Solutions</span>
+                </div>
+                <ul id="curriculaList" class="text-xs text-emerald-800 space-y-2 leading-relaxed flex-grow list-disc list-inside">
+                  <!-- Dynamic cures -->
+                </ul>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Split Layout: Left is Active Disco Tables Directories, Right is Selected Table Board -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- COLUMN 1: ACTIVE DISCO TABLES DIRECTORIES -->
+        <div id="discoTablesDirectoryColumn" class="lg:col-span-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-950 flex items-center space-x-2">
+              <i data-lucide="hash" class="w-5 h-5 text-indigo-650"></i>
+              <span>Active Disco Tables</span>
+            </h3>
+            <span class="text-xs text-slate-500 font-medium" id="tablesTotalIndicator">Loading...</span>
+          </div>
+
+          <!-- The Table List Container -->
+          <div id="discoTablesOverviewList" class="space-y-4 max-h-[700px] overflow-y-auto pr-2">
+            <!-- Dynamic columns containing styled cards fetched from sqlite -->
+          </div>
+        </div>
+
+        <!-- COLUMN 2: SELECTED TABLE CHAT ROOM WORKSPACE -->
+        <div id="workspaceColumn" class="lg:col-span-7">
+          <div id="activeTableWorkspaceArea" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-160px)] min-h-[450px]">
+            
+            <!-- Default Workspace Landing (When no table selected) -->
+            <div id="workspaceFallbackState" class="flex-grow flex flex-col justify-center items-center text-center p-12 space-y-6">
+              <div class="bg-indigo-50 text-indigo-600 p-6 rounded-full flex items-center justify-center border border-indigo-100 shadow-inner animate-bounce">
+                <i data-lucide="message-square" class="w-12 h-12"></i>
+              </div>
+              <div class="max-w-md">
+                <h3 class="text-xl font-bold text-slate-900">Join the Disco Table</h3>
+                <p class="text-slate-500 text-sm mt-2 leading-relaxed">
+                  Select any active department thread from the directory. You will immediately enter the discussion thread with correct anonymity parameters initialized.
+                </p>
+              </div>
+            </div>
+
+            <!-- Active Workspace Container (Hidden initially) -->
+            <div id="workspaceActiveState" class="hidden flex-col h-full">
+              
+              <!-- Workspace Title Block -->
+              <div class="bg-slate-50 p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div class="flex items-center space-x-4">
+                  <!-- Leave Table (Back) Button -->
+                  <button onclick="leaveActiveDiscoTable()" class="bg-white hover:bg-slate-100 text-slate-700 p-2.5 rounded-xl border border-slate-200 shadow-sm transition flex items-center justify-center cursor-pointer" title="Back to Directory">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                  </button>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <span id="workspaceBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                        Academic Mode
+                      </span>
+                      <span id="workspaceSecurityBadge" class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1">
+                        <i data-lucide="globe" class="w-3 h-3"></i>
+                        <span id="workspaceSecurityText">Public</span>
+                      </span>
+                    </div>
+                    <h3 id="workspaceTitle" class="text-lg font-bold text-slate-900 mt-2">Active Table Room</h3>
+                    <p id="workspaceDescription" class="text-xs text-slate-500 mt-1 line-clamp-2">Table metadata description...</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-2 self-start sm:self-center">
+                  <!-- Indicator lights -->
+                  <div class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex items-center space-x-2 text-xs">
+                    <span class="flex h-2 w-2 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span id="activeWorkspaceUserLabel" class="font-bold text-slate-600">Online</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Message Stream Log Area -->
+              <div id="messagesContainerStream" class="flex-grow p-6 overflow-y-auto space-y-4 bg-slate-50/40">
+                <!-- Message card loops mapped dynamically with inner SQL logic -->
+              </div>
+
+              <!-- Chat Message Input Drawer Area -->
+              <div class="p-4 bg-white border-t border-slate-200">
+                <form id="messagePostForm" onsubmit="handleMessageSubmit(event)" class="relative flex items-center space-x-2">
+                  <input type="text" id="messageTextInput" placeholder="Reply to department discussion thread..." required class="block w-full rounded-xl border border-slate-300 pr-12 pl-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500">
+                  <button type="submit" class="absolute right-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition shadow flex items-center justify-center cursor-pointer">
+                    <i data-lucide="send-horizontal" class="w-4 h-4"></i>
+                  </button>
+                </form>
+                <div class="flex justify-between items-center mt-3 text-[10px] text-slate-400 px-1">
+                  <span id="workspaceAnonymityRuleText">Real handles exposed for feedback lookup.</span>
+                  <span class="flex items-center space-x-1 text-slate-500 font-bold">
+                    <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                    <span>SQLite Thread Secured</span>
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- DIALOG MODAL: CREATE A DISCO TABLE (HTML dialog) -->
+  <dialog id="createDiscoTableModal" class="p-0 bg-transparent backdrop:bg-slate-900/60 transition-all focus:outline-none w-full max-w-lg">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden mx-4">
+      
+      <!-- Modal Header -->
+      <div class="bg-slate-50 text-slate-900 px-6 py-4 flex justify-between items-center border-b border-slate-200">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-650"></i>
+          <h3 class="text-base font-bold tracking-tight">Create a Disco Table</h3>
+        </div>
+        <button onclick="closeCreateDiscoTableModal()" class="text-slate-400 hover:text-slate-600 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Modal Fields Form -->
+      <form id="createTableForm" onsubmit="handleCreateTableSubmit(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5">Disco Table Name Prefix</label>
+          <input type="text" id="newTableTitle" required placeholder="e.g. CS101 Muddy Points: Dynamic Programming" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5">Academics Focus Outline</label>
+          <textarea id="newTableDesc" required rows="3" placeholder="Identify the core syllabus terms and concept gaps you are aiming to outline here..." class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5">Visibility Access</label>
+            <select id="newTableAccess" class="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500">
+              <option value="public">Public (Entire Dept)</option>
+              <option value="private">Private (Only Creator)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5">Privacy Table Mode</label>
+            <select id="newTableMode" class="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500">
+              <option value="academic_discussion">Academic Discussion (Real Names)</option>
+              <option value="muddy_points">Muddy Points (Reproducible Anonymous)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-indigo-50/55 p-3 rounded-xl text-xs text-indigo-900 border border-indigo-100 flex items-start space-x-2">
+          <i data-lucide="info" class="w-4.5 h-4.5 text-indigo-650 flex-shrink-0 mt-0.5"></i>
+          <p>
+            Choosing <span class="font-bold">Muddy Points</span> guarantees full peer safety. Real student names are fully processed as anonymous Greek handles downstream.
+          </p>
+        </div>
+
+        <!-- Button Actions -->
+        <div class="flex space-x-3 pt-2 justify-end">
+          <button type="button" onclick="closeCreateDiscoTableModal()" class="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 font-medium text-slate-600 text-sm rounded-xl cursor-pointer">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl cursor-pointer shadow-md flex items-center space-x-1">
+            <span>Assemble Table</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Footer -->
+  <footer class="bg-white text-slate-500 py-8 border-t border-slate-200 text-center text-xs mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
+      <p><strong>Virtable Collaborative Departmental Space</strong> © 2026. Secured with sqlite3 local database file structures.</p>
+      <p class="text-slate-400 font-mono text-[10px]">Active Node Endpoint at http://localhost:3000 • Local LLM: qwen2.5-coder:3b</p>
+    </div>
+  </footer>
+
+  <!-- CLIENT-SIDE APPLICATION SCRIPT (VANILLA JS API HOOKS) -->
+  <script>
+    // App State declarations
+    let token = localStorage.getItem('virtable_token') || null;
+    let currentUser = null;
+    try {
+      const storedUser = localStorage.getItem('virtable_user');
+      if (storedUser) currentUser = JSON.parse(storedUser);
+    } catch (e) {
+      console.warn("Could not read credentials from localStorage:", e);
+    }
+
+    let activeDiscoTableId = null;
+    let currentTablesList = [];
+    let workspacePollInterval = null;
+
+    // Initialize application interface
+    document.addEventListener("DOMContentLoaded", () => {
+      syncInterfaceWithTokenState();
+      lucide.createIcons();
+    });
+
+    // Helper: Show responsive Toast Alerts
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const toastMsgText = document.getElementById('toastMessage');
+      const toastIconSpan = document.getElementById('toastIcon');
+      
+      toastMsgText.textContent = message;
+      if (isError) {
+        toastIconSpan.innerHTML = '<i data-lucide="alert-octagon" class="w-5 h-5 text-rose-500"></i>';
+        toast.className = "fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 transition-all duration-300 bg-rose-50 border border-rose-200 text-rose-900 px-5 py-3 rounded-xl shadow-lg flex items-center space-x-3 max-w-md";
+      } else {
+        toastIconSpan.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-emerald-500"></i>';
+        toast.className = "fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 transition-all duration-300 bg-white border border-slate-200 text-slate-800 px-5 py-3 rounded-xl shadow-lg flex items-center space-x-3 max-w-md";
+      }
+      
+      lucide.createIcons();
+      toast.className = toast.className.replace('translate-y-10 opacity-0', 'translate-y-0 opacity-100');
+      
+      setTimeout(() => {
+        toast.className = toast.className.replace('translate-y-0 opacity-100', 'translate-y-10 opacity-0');
+      }, 4000);
+    }
+
+    // Auth tabs switcher
+    function switchAuthTab(tab) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const tLogin = document.getElementById('toggleLoginBtn');
+      const tRegister = document.getElementById('toggleRegisterBtn');
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tLogin.className = "flex-1 pb-4 text-center border-b-2 border-indigo-605 text-indigo-650 font-semibold text-base transition";
+        tRegister.className = "flex-1 pb-4 text-center border-b-2 border-transparent text-slate-400 font-medium text-base transition hover:text-slate-650";
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tLogin.className = "flex-1 pb-4 text-center border-b-2 border-transparent text-slate-400 font-medium text-base transition hover:text-slate-650";
+        tRegister.className = "flex-1 pb-4 text-center border-b-2 border-indigo-605 text-indigo-650 font-semibold text-base transition";
+      }
+    }
+
+    // Control View toggles based on User Token state
+    function syncInterfaceWithTokenState() {
+      const authSection = document.getElementById('authSection');
+      const appSection = document.getElementById('appSection');
+      const headerArea = document.getElementById('headerAuthArea');
+
+      // Reset layout visibility on sync
+      const dirCol = document.getElementById('discoTablesDirectoryColumn');
+      const wsCol = document.getElementById('workspaceColumn');
+      if (dirCol && wsCol) {
+        dirCol.classList.remove('hidden');
+        wsCol.className = wsCol.className.replace('lg:col-span-12', 'lg:col-span-7');
+      }
+
+      const overview = document.getElementById('overviewPanel');
+      if (overview) overview.classList.remove('hidden');
+
+      if (token && currentUser) {
+        authSection.classList.add('hidden');
+        appSection.classList.remove('hidden');
+
+        // Check if the user is a Prof to give exclusive highlights
+        const isProf = currentUser.email === 'prof@iitb.ac.in';
+        const displayBadge = isProf 
+          ? '<span class="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Faculty</span>'
+          : '<span class="bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Scholar</span>';
+
+        headerArea.innerHTML = `
+          <div class="flex items-center space-x-3 text-right">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">${currentUser.name}</p>
+              <p class="text-[10px] text-slate-500">${currentUser.email}</p>
+            </div>
+            ${displayBadge}
+          </div>
+          <button onclick="handleLogOutUser()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 hover:border-slate-300 transition flex items-center space-x-1 cursor-pointer">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            <span>Log Out</span>
+          </button>
+        `;
+        
+        // Query Active Tables Directory
+        fetchDiscoTables();
+        
+        // Auto-show professor gap analysis dashboard if logged in as Prof
+        if (isProf) {
+          document.getElementById('facultyDashboardPanel').classList.remove('hidden');
+          fetchInstructorStats();
+        } else {
+          document.getElementById('facultyDashboardPanel').classList.add('hidden');
+        }
+
+      } else {
+        authSection.classList.remove('hidden');
+        appSection.classList.add('hidden');
+        headerArea.innerHTML = `
+          <span class="text-xs text-slate-500 font-mono tracking-wider">HTTP/1.1 SECURE PORT</span>
+        `;
+      }
+      lucide.createIcons();
+    }
+
+    // Email check regex for standard format
+    const emailPattern = /^(25m\d{4}|prof)@iitb\.ac\.in$/i;
+
+    // Auth Submission Handlers
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const banner = document.getElementById('authErrorBanner');
+      const errText = document.getElementById('authErrorText');
+
+      banner.classList.add('hidden');
+
+      if (!emailPattern.test(email.trim())) {
+        banner.classList.remove('hidden');
+        errText.textContent = "Access Denied: Standard student emails must match the pattern 25MDDDD@iitb.ac.in (where D is 0-9).";
+        showToast("Invalid email pattern", true);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication challenge failed.');
+        }
+
+        token = data.token;
+        currentUser = data.user;
+        localStorage.setItem('virtable_token', token);
+        localStorage.setItem('virtable_user', JSON.stringify(currentUser));
+        
+        showToast(`Welcome back, ${currentUser.name}!`, false);
+        syncInterfaceWithTokenState();
+      } catch (err) {
+        banner.classList.remove('hidden');
+        errText.textContent = err.message;
+        showToast(err.message, true);
+      }
+    }
+
+    async function handleRegisterSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById('registerName').value;
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      const banner = document.getElementById('authErrorBanner');
+      const errText = document.getElementById('authErrorText');
+
+      banner.classList.add('hidden');
+
+      if (!emailPattern.test(email.trim())) {
+        banner.classList.remove('hidden');
+        errText.textContent = "Access Denied: Standard student emails must match the pattern 25MDDDD@iitb.ac.in (where D is 0-9).";
+        showToast("Invalid email pattern", true);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Could not serialize academic record.');
+        }
+
+        token = data.token;
+        currentUser = data.user;
+        localStorage.setItem('virtable_token', token);
+        localStorage.setItem('virtable_user', JSON.stringify(currentUser));
+
+        showToast("Registration Successful Vetted!", false);
+        syncInterfaceWithTokenState();
+      } catch (err) {
+        banner.classList.remove('hidden');
+        errText.textContent = err.message;
+        showToast(err.message, true);
+      }
+    }
+
+    function handleLogOutUser() {
+      // Clear timers and context
+      if (workspacePollInterval) clearInterval(workspacePollInterval);
+      token = null;
+      currentUser = null;
+      activeDiscoTableId = null;
+      localStorage.removeItem('virtable_token');
+      localStorage.removeItem('virtable_user');
+      showToast("Safely logged out of Virtable.", false);
+      syncInterfaceWithTokenState();
+    }
+
+    // ---------------- ACTIVE DISCO TABLES ----------------
+
+    async function fetchDiscoTables() {
+      const container = document.getElementById('discoTablesOverviewList');
+      const countIndicator = document.getElementById('tablesTotalIndicator');
+      
+      try {
+        const res = await fetch('/api/disco-tables', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Verification loop rejected details.");
+        
+        const tables = await res.json();
+        currentTablesList = tables;
+        countIndicator.textContent = `${tables.length} Total Spaces`;
+
+        if (tables.length === 0) {
+          container.innerHTML = `
+            <div class="text-center p-8 bg-white border border-dashed rounded-2xl text-slate-400">
+              <p class="font-medium text-sm">No Active Disco Tables found</p>
+              <p class="text-xs">Formulate one using 'Create a Disco Table' above.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = tables.map(tb => {
+          const isSelected = activeDiscoTableId === tb.id;
+          const bgActive = isSelected ? 'border-indigo-650 ring-2 ring-indigo-100 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/40 bg-white';
+          
+          const isMuddy = tb.table_mode === 'muddy_points';
+          const modeBadge = isMuddy
+            ? '<span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded text-[10px] font-bold"><i class="inline w-3 h-3 align-middle mr-0.5 mr-0.5" data-lucide="shades"></i>Muddy Points</span>'
+            : '<span class="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded text-[10px] font-bold"><i class="inline w-3 h-3 align-middle mr-0.5" data-lucide="book-open"></i>Academic</span>';
+
+          const visibilityBadge = tb.access_type === 'private'
+            ? '<span class="text-rose-500 font-bold ml-1.5"><i class="inline w-3.5 h-3.5" data-lucide="lock"></i></span>'
+            : '';
+
+          return `
+            <div onclick="selectActiveDiscoTable(${tb.id})" class="border p-5 rounded-2xl transition-all cursor-pointer shadow-sm relative duration-150 ${bgActive}">
+              <div class="flex justify-between items-start">
+                <div class="flex-grow">
+                  <div class="flex items-center space-x-1">
+                    ${modeBadge}
+                    ${visibilityBadge}
+                  </div>
+                  <h4 class="font-bold text-slate-900 text-sm mt-2 tracking-tight">${tb.title}</h4>
+                  <p class="text-xs text-slate-500 mt-1 line-clamp-2">${tb.description || 'No focus description'}</p>
+                </div>
+                <div class="text-right flex-shrink-0 ml-3">
+                  <span class="text-xs font-bold text-slate-600 bg-slate-150 px-2 py-1 rounded-lg font-mono flex items-center space-x-1">
+                    <i class="w-3 h-3" data-lucide="message-square-text"></i>
+                    <span>${tb.message_count}</span>
+                  </span>
+                </div>
+              </div>
+
+              <!-- AI Summary Block -->
+              <div class="mt-4 bg-slate-50 border border-slate-150 p-3 rounded-xl">
+                <div class="flex items-center space-x-1.5 text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-1">
+                  <i class="w-3.5 h-3.5 text-indigo-650" data-lucide="sparkles"></i>
+                  <span>AI Summary Preview</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-relaxed italic">
+                  ${tb.cached_disco_summary ? truncateText(tb.cached_disco_summary, 120) : 'No summary has been generated for this group yet.'}
+                </p>
+              </div>
+
+              <div class="mt-3 flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 pt-2.5">
+                <span>Formed by: <strong class="text-slate-500 font-semibold">${tb.creator_name}</strong></span>
+                <span>Last updated: ${tb.last_spun_at ? new Date(tb.last_spun_at).toLocaleTimeString() : 'Awaiting worker'}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        lucide.createIcons();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    function truncateText(str, n) {
+      return (str.length > n) ? str.substr(0, n - 1) + '...' : str;
+    }
+
+    // Modal Control wrappers
+    const dialog = document.getElementById('createDiscoTableModal');
+
+    function openCreateDiscoTableModal() {
+      dialog.showModal();
+      lucide.createIcons();
+    }
+
+    function closeCreateDiscoTableModal() {
+      dialog.close();
+    }
+
+    // Modal Submit handler
+    async function handleCreateTableSubmit(event) {
+      event.preventDefault();
+      
+      const title = document.getElementById('newTableTitle').value;
+      const description = document.getElementById('newTableDesc').value;
+      const access_type = document.getElementById('newTableAccess').value;
+      const table_mode = document.getElementById('newTableMode').value;
+
+      try {
+        const res = await fetch('/api/disco-tables', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ title, description, access_type, table_mode })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to assemble table.');
+
+        showToast(`Disco Table successfully formed!`, false);
+        document.getElementById('createTableForm').reset();
+        closeCreateDiscoTableModal();
+        
+        // Select newly created table automatically
+        activeDiscoTableId = data.id;
+        fetchDiscoTables();
+        selectActiveDiscoTable(data.id);
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    // ---------------- WORKSPACE LOGS CHAT ENGINE ----------------
+
+    async function selectActiveDiscoTable(id) {
+      activeDiscoTableId = id;
+      
+      // Hide tables directory column and make workspace column occupy full width
+      const dirCol = document.getElementById('discoTablesDirectoryColumn');
+      const wsCol = document.getElementById('workspaceColumn');
+      if (dirCol && wsCol) {
+        dirCol.classList.add('hidden');
+        wsCol.className = wsCol.className.replace('lg:col-span-7', 'lg:col-span-12');
+      }
+
+      // Hide the overview panel and dashboard panel when a table is active
+      const overview = document.getElementById('overviewPanel');
+      if (overview) overview.classList.add('hidden');
+      const dashboard = document.getElementById('facultyDashboardPanel');
+      if (dashboard) dashboard.classList.add('hidden');
+
+      // Highlight correct selection in Left Sidebar
+      fetchDiscoTables();
+
+      const fallback = document.getElementById('workspaceFallbackState');
+      const activeState = document.getElementById('workspaceActiveState');
+      
+      fallback.classList.add('hidden');
+      activeState.classList.remove('hidden');
+      activeState.classList.add('flex');
+
+      // Clear previous timer triggers
+      if (workspacePollInterval) clearInterval(workspacePollInterval);
+
+      // Fetch immediately
+      await fetchActiveWorkspaceThread();
+
+      // Begin 3 Second poll loop triggers
+      workspacePollInterval = setInterval(fetchActiveWorkspaceThread, 3000);
+    }
+
+    function leaveActiveDiscoTable() {
+      if (workspacePollInterval) clearInterval(workspacePollInterval);
+      activeDiscoTableId = null;
+
+      // Show tables directory column and make workspace column regular width
+      const dirCol = document.getElementById('discoTablesDirectoryColumn');
+      const wsCol = document.getElementById('workspaceColumn');
+      if (dirCol && wsCol) {
+        dirCol.classList.remove('hidden');
+        wsCol.className = wsCol.className.replace('lg:col-span-12', 'lg:col-span-7');
+      }
+
+      // Show the overview panel again
+      const overview = document.getElementById('overviewPanel');
+      if (overview) overview.classList.remove('hidden');
+      
+      // Show dashboard panel again if the current user is a professor
+      if (currentUser && currentUser.email === 'prof@iitb.ac.in') {
+        const dashboard = document.getElementById('facultyDashboardPanel');
+        if (dashboard) dashboard.classList.remove('hidden');
+      }
+
+      const fallback = document.getElementById('workspaceFallbackState');
+      const activeState = document.getElementById('workspaceActiveState');
+      
+      fallback.classList.remove('hidden');
+      activeState.classList.add('hidden');
+      activeState.classList.remove('flex');
+
+      // Refresh list
+      fetchDiscoTables();
+    }
+
+    async function fetchActiveWorkspaceThread() {
+      if (!activeDiscoTableId) return;
+
+      const titleNode = document.getElementById('workspaceTitle');
+      const descriptionNode = document.getElementById('workspaceDescription');
+      const badgeNode = document.getElementById('workspaceBadge');
+      const securityBadge = document.getElementById('workspaceSecurityBadge');
+      const securityText = document.getElementById('workspaceSecurityText');
+      const ruleText = document.getElementById('workspaceAnonymityRuleText');
+      const messagesContainer = document.getElementById('messagesContainerStream');
+
+      try {
+        // Find metadata locally from saved array
+        const info = currentTablesList.find(t => t.id === activeDiscoTableId);
+        if (info) {
+          titleNode.textContent = info.title;
+          descriptionNode.textContent = info.description || '';
+          
+          if (info.table_mode === 'muddy_points') {
+            badgeNode.textContent = 'Muddy Points Mode (Protected)';
+            badgeNode.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-200';
+            ruleText.innerHTML = '<span class="text-amber-600 font-bold">● ANONYMITY FILTER ACTIVE:</span> Real student identifiers are fully masked downstream.';
+          } else {
+            badgeNode.textContent = 'Academic Discussion (Transparent)';
+            badgeNode.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-900 border border-indigo-200';
+            ruleText.innerHTML = '<span class="text-indigo-650 font-bold">● SYSTEM RULES:</span> Verification credentials are open for collaborative academic lookup.';
+          }
+
+          securityText.textContent = info.access_type === 'private' ? 'Private Session' : 'Public Session';
+          securityBadge.className = info.access_type === 'private'
+            ? 'bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1'
+            : 'bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1';
+        }
+
+        // Fetch thread messages
+        const res = await fetch(`/api/disco-tables/${activeDiscoTableId}/messages`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Could not acquire table discussion messages.");
+
+        const msgs = await res.json();
+        
+        if (msgs.length === 0) {
+          messagesContainer.innerHTML = `
+            <div class="flex-grow flex flex-col justify-center items-center text-center p-12 text-slate-400/85">
+              <i class="w-10 h-10 stroke-[1.5]" data-lucide="spark"></i>
+              <p class="font-medium text-xs mt-3">This Table is silent. Be the first to start the educational discourse!</p>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        messagesContainer.innerHTML = msgs.map(m => {
+          const isOwn = currentUser && (currentUser.email === m.sender_email || m.sender_name.includes(getSelfMaskToken(currentUser.id, info)));
+          const bubbleAlign = isOwn ? 'justify-end' : 'justify-start';
+          const bubbleColor = isOwn ? 'bg-indigo-600 text-white' : 'bg-white text-slate-800 border border-slate-200';
+          const badgeType = isOwn ? 'text-indigo-200 bg-indigo-800/40' : 'text-slate-400 bg-slate-100';
+
+          const subtitle = m.is_anonymous
+            ? `${m.sender_name}`
+            : `${m.sender_name} <span class="font-mono text-[9px] text-slate-400">&lt;${m.sender_email}&gt;</span>`;
+
+          return `
+            <div class="flex ${bubbleAlign} items-start space-x-2.5">
+              <div class="max-w-[85%] sm:max-w-[70%]">
+                <div class="flex items-center space-x-2 mb-1 pl-1">
+                  <span class="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                    <span>${subtitle}</span>
+                  </span>
+                  <span class="text-[9px] text-slate-400 font-mono">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div class="p-4 rounded-3xl text-sm leading-relaxed ${bubbleColor} shadow-sm">
+                  <p class="whitespace-pre-line">${m.message_text}</p>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Autoscroll stream log
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        lucide.createIcons();
+      } catch (err) {
+        console.error(err.message);
+      }
+    }
+
+    // Helper to estimate if sender belongs to currently signed-in scholar so display alignments are neat
+    function getSelfMaskToken(id, tableInfo) {
+      if (!tableInfo || tableInfo.table_mode !== 'muddy_points') return '';
+      const greekAlphabet = [
+        "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta",
+        "Eta", "Theta", "Iota", "Kappa", "Lambda", "Mu",
+        "Nu", "Xi", "Omicron", "Pi", "Rho", "Sigma",
+        "Tau", "Upsilon", "Phi", "Chi", "Psi", "Omega"
+      ];
+      const index = (id * 7 + 13) % greekAlphabet.length;
+      return `Anonymous ${greekAlphabet[index]}`;
+    }
+
+    async function handleMessageSubmit(event) {
+      event.preventDefault();
+      const input = document.getElementById('messageTextInput');
+      const text = input.value;
+      if (!text.trim()) return;
+
+      try {
+        const res = await fetch(`/api/disco-tables/${activeDiscoTableId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ message_text: text })
+        });
+
+        if (!res.ok) throw new Error("Could not log messages.");
+        
+        input.value = '';
+        fetchActiveWorkspaceThread();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    // ---------------- FACULTY / INSTRUCTOR ANALYTICS DASHBOARD ----------------
+
+    function toggleFacultyDashboardView() {
+      const dashboard = document.getElementById('facultyDashboardPanel');
+      dashboard.classList.toggle('hidden');
+      if (!dashboard.classList.contains('hidden')) {
+        fetchInstructorStats();
+      }
+    }
+
+    async function fetchInstructorStats() {
+      const hotList = document.getElementById('hotTablesList');
+      const misconceptions = document.getElementById('misconceptionList');
+      const foundations = document.getElementById('foundationsList');
+      const cures = document.getElementById('curriculaList');
+
+      try {
+        const res = await fetch('/api/instructor/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Instructor stats block failed.");
+
+        // Loop and render hot queues
+        if (data.hotTables && data.hotTables.length > 0) {
+          hotList.innerHTML = data.hotTables.map((tb, idx) => {
+            const placementCol = idx === 0 
+              ? 'text-amber-500 font-extrabold' 
+              : idx === 1 
+                ? 'text-slate-500 font-bold' 
+                : 'text-slate-400';
+                
+            return `
+              <div class="bg-white border border-slate-200 p-3.5 rounded-xl flex items-center justify-between text-xs hover:bg-slate-50 transition shadow-sm">
+                <div class="flex items-center space-x-2.5">
+                  <span class="text-xs ${placementCol} font-mono uppercase tracking-widest">#0${idx + 1}</span>
+                  <div>
+                    <h5 class="font-bold text-slate-900">${tb.title}</h5>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Focus Mode: <span class="capitalize underline decoration-slate-300">${tb.table_mode.replace('_', ' ')}</span></p>
+                  </div>
+                </div>
+                <div class="flex space-x-3 items-center ml-2">
+                  <span class="flex items-center space-x-0.5 text-slate-500" title="Posts Count">
+                    <i class="w-3 h-3 text-slate-400" data-lucide="message-square"></i>
+                    <strong class="font-bold font-mono text-slate-700">${tb.message_count}</strong>
+                  </span>
+                  <span class="flex items-center space-x-0.5 text-slate-500" title="Active Scholars">
+                    <i class="w-3 h-3 text-slate-400" data-lucide="users"></i>
+                    <strong class="font-bold font-mono text-slate-700">${tb.participant_count}</strong>
+                  </span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          hotList.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No academic data points accumulated yet.</p>`;
+        }
+
+        // Render AI Conceptual Gap Bento lists
+        const gaps = data.gapAnalysis;
+        
+        const mcArr = gaps["Common Misconceptions"] || [];
+        misconceptions.innerHTML = mcArr.length > 0
+          ? mcArr.map(item => `<li class="pl-1 mb-1">${item}</li>`).join('')
+          : '<li class="text-[11px] text-slate-500 italic">No misconception nodes recorded.</li>';
+
+        const fdArr = gaps["Missing Foundations"] || [];
+        foundations.innerHTML = fdArr.length > 0
+          ? fdArr.map(item => `<li class="pl-1 mb-1">${item}</li>`).join('')
+          : '<li class="text-[11px] text-slate-500 italic">No missing baseline foundations mapped.</li>';
+
+        const crArr = gaps["Recommended Curricular Fixes"] || [];
+        cures.innerHTML = crArr.length > 0
+          ? crArr.map(item => `<li class="pl-1 mb-1">${item}</li>`).join('')
+          : '<li class="text-[11px] text-slate-500 italic">Curricula tracks fully synchronized.</li>';
+
+        lucide.createIcons();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // Force background worker execution for fast demonstration testing
+    async function triggerBackgroundWorkerManual() {
+      const spinner = document.getElementById('manualWorkerSpinner');
+      const icon = document.getElementById('manualWorkerIcon');
+      const btn = document.getElementById('manualWorkerBtn');
+
+      spinner.classList.remove('hidden');
+      icon.classList.add('hidden');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/worker/spin', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Background execution engine failed.");
+
+        showToast("Success: AI worker analyzed tables and saved summaries to database!", false);
+        
+        // Refresh grids
+        fetchDiscoTables();
+        fetchInstructorStats();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        spinner.classList.add('hidden');
+        icon.classList.remove('hidden');
+        btn.disabled = false;
+      }
+    }
+
+  </script>
+</body>
+</html>
