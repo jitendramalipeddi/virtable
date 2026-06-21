@@ -140,112 +140,29 @@ async function initializeSchema() {
       )
     `);
 
+    // table_participants
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS table_participants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        disco_table_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (disco_table_id) REFERENCES disco_tables (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        UNIQUE(disco_table_id, user_id)
+      )
+    `);
+
     console.log('[Database System] Tables created and certified.');
 
-    // Seed test accounts and initial records if database is empty and seeding is requested
-    const userCount = await dbGet("SELECT COUNT(*) as count FROM users");
-    const shouldSeed = process.env.SEED_DATABASE === 'true';
-    if (userCount.count === 0 && shouldSeed) {
-      console.log('[Database Seeding] Seeding initial department records...');
-
-      // Seed Users
-      const salt = await bcrypt.genSalt(10);
-      const student1Hash = await bcrypt.hash('student123', salt);
-      const student2Hash = await bcrypt.hash('student123', salt);
-      const profHash = await bcrypt.hash('prof123', salt);
-
-      await dbRun(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ["Student Delta", "25m0001@iitb.ac.in", student1Hash]
-      );
-      await dbRun(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ["Student Kappa", "25m0002@iitb.ac.in", student2Hash]
-      );
-      await dbRun(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ["Professor Banerjee", "prof@iitb.ac.in", profHash]
-      );
-
-      // Fetch IDs
-      const s1 = await dbGet("SELECT id FROM users WHERE email = '25m0001@iitb.ac.in'");
-      const s2 = await dbGet("SELECT id FROM users WHERE email = '25m0002@iitb.ac.in'");
-      const pr = await dbGet("SELECT id FROM users WHERE email = 'prof@iitb.ac.in'");
-
-      // Seed Disco Tables
-      // muddy_points
-      await dbRun(`
-        INSERT INTO disco_tables (title, description, creator_id, access_type, table_mode, cached_disco_summary)
-        VALUES (?, ?, ?, 'public', 'muddy_points', ?)
-      `, [
-        "CS101 Muddy Points: Recursion vs Iteration",
-        "Post all your core points of confusion regard execution frames, base cases, and stack depths here.",
-        pr.id,
-        "Anonymously sharing confusion regarding the stack overflow limits of deep recursion calls."
-      ]);
-
-      // academic_discussion
-      await dbRun(`
-        INSERT INTO disco_tables (title, description, creator_id, access_type, table_mode, cached_disco_summary)
-        VALUES (?, ?, ?, 'public', 'academic_discussion', ?)
-      `, [
-        "CS101 Academic Discussion: Big-O Complexity Bounds",
-        "Departmental discussion panel for sorting algorithm complexity bounds and amortized averages.",
-        pr.id,
-        "Formal analysis comparing O(N log N) merge sort structures to space-efficiency considerations."
-      ]);
-
-      // private table
-      await dbRun(`
-        INSERT INTO disco_tables (title, description, creator_id, access_type, table_mode, cached_disco_summary)
-        VALUES (?, ?, ?, 'private', 'academic_discussion', ?)
-      `, [
-        "IITB Graduate Research: Quantum Networks",
-        "Private planning room for department research scholars.",
-        pr.id,
-        "Confidential research references covering entanglement distribution protocols."
-      ]);
-
-      // Fetch Table IDs
-      const t1 = await dbGet("SELECT id FROM disco_tables WHERE title LIKE '%Recursion%'");
-      const t2 = await dbGet("SELECT id FROM disco_tables WHERE title LIKE '%Big-O%'");
-
-      // Seed Messages
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t1.id, s1.id, "I don't understand how the recursive call remembers where to return in the code stack. It feels like magic."]
-      );
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t1.id, s2.id, "Agree completely. Also, when does Stack Overflow actually trigger? Is it dependent on heap memory?"]
-      );
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t1.id, s1.id, "I tested writing a function with no base conditions and the app crashed instantly. Is heap involved?"]
-      );
-
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t2.id, s2.id, "Is a hash table lookup really always O(1) in practice? What happens with high collisions?"]
-      );
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t2.id, pr.id, "Under serious collision rates, it degenerates to linear O(N). Traditional tables now resolve clusters using BSTs for O(log N) limits."]
-      );
-      await dbRun(
-        "INSERT INTO messages (disco_table_id, user_id, message_text) VALUES (?, ?, ?)",
-        [t2.id, s1.id, "Ah! That is why we chain indexes. Amortized worst-cases make so much sense now. Thank you, Prof."]
-      );
-
-      console.log('[Database Seeding] Finished seeding SQLite dataset.');
-    }
+    // Seeding has been removed to make the database clean for production/real usage.
   } catch (error) {
     console.error('[Database Initialization Critical Failure]:', error);
   }
 }
 
 // Global JWT Verification Middleware
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -253,6 +170,14 @@ const authMiddleware = (req, res, next) => {
     }
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Verify that the user still exists in the database (handles case where DB was cleared/reset)
+    const userExists = await dbGet("SELECT 1 FROM users WHERE id = ?", [decoded.userId]);
+    if (!userExists) {
+      console.warn(`[JWT Auth Warning] Refused access: User ID ${decoded.userId} does not exist in database.`);
+      return res.status(401).json({ error: 'User session has expired or been reset. Please register/log in again.' });
+    }
+
     req.userId = decoded.userId;
     req.userEmail = decoded.email;
     next();
@@ -360,11 +285,14 @@ app.get('/api/disco-tables', authMiddleware, async (req, res) => {
       SELECT 
         dt.*, 
         u.name as creator_name, 
-        (SELECT COUNT(*) FROM messages m WHERE m.disco_table_id = dt.id) as message_count
+        (SELECT COUNT(*) FROM messages m WHERE m.disco_table_id = dt.id) as message_count,
+        CASE WHEN dt.creator_id = ? THEN 1 ELSE (SELECT 1 FROM table_participants tp WHERE tp.disco_table_id = dt.id AND tp.user_id = ?) END as has_joined
       FROM disco_tables dt
       JOIN users u ON dt.creator_id = u.id
-      WHERE dt.access_type = 'public' OR dt.creator_id = ?
-    `, [req.userId]);
+      WHERE dt.access_type = 'public' 
+         OR dt.creator_id = ? 
+         OR EXISTS (SELECT 1 FROM table_participants tp WHERE tp.disco_table_id = dt.id AND tp.user_id = ?)
+    `, [req.userId, req.userId, req.userId, req.userId]);
 
     res.json(tables);
   } catch (error) {
@@ -394,6 +322,13 @@ app.post('/api/disco-tables', authMiddleware, async (req, res) => {
     ]);
 
     const created = await dbGet("SELECT * FROM disco_tables WHERE creator_id = ? ORDER BY id DESC LIMIT 1", [req.userId]);
+    
+    // Automatically add creator to table_participants
+    await dbRun(
+      "INSERT OR IGNORE INTO table_participants (disco_table_id, user_id) VALUES (?, ?)",
+      [created.id, req.userId]
+    );
+
     console.log(`[Disco Table Formed] Table id #${created.id} created by user id: ${req.userId}`);
     res.status(201).json(created);
   } catch (err) {
@@ -427,6 +362,71 @@ app.get('/api/disco-tables/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/disco-tables/:id/join
+app.post('/api/disco-tables/:id/join', authMiddleware, async (req, res) => {
+  try {
+    const table = await dbGet("SELECT creator_id, access_type FROM disco_tables WHERE id = ?", [req.params.id]);
+    if (!table) {
+      return res.status(404).json({ error: 'Disco table not found.' });
+    }
+
+    if (table.access_type === 'private' && table.creator_id !== req.userId) {
+      const isInvited = await dbGet("SELECT 1 FROM table_participants WHERE disco_table_id = ? AND user_id = ?", [req.params.id, req.userId]);
+      if (!isInvited) {
+        return res.status(403).json({ error: 'Forbidden: Private research table.' });
+      }
+    }
+
+    await dbRun(
+      "INSERT OR IGNORE INTO table_participants (disco_table_id, user_id) VALUES (?, ?)",
+      [req.params.id, req.userId]
+    );
+
+    res.json({ message: 'Successfully joined the disco table.' });
+  } catch (error) {
+    console.error('[Join API Error]:', error);
+    res.status(500).json({ error: 'Failed to join the table.' });
+  }
+});
+
+// POST /api/disco-tables/:id/invite
+app.post('/api/disco-tables/:id/invite', authMiddleware, async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  try {
+    const table = await dbGet("SELECT creator_id, access_type FROM disco_tables WHERE id = ?", [req.params.id]);
+    if (!table) {
+      return res.status(404).json({ error: 'Disco table not found.' });
+    }
+
+    if (table.creator_id !== req.userId) {
+      return res.status(403).json({ error: 'Forbidden: Only the table creator can invite participants.' });
+    }
+
+    const invitedUser = await dbGet("SELECT id FROM users WHERE email = ?", [email.trim().toLowerCase()]);
+    if (!invitedUser) {
+      return res.status(404).json({ error: 'User with this email not found in the department directory.' });
+    }
+
+    if (invitedUser.id === req.userId) {
+      return res.status(400).json({ error: 'You are already the creator of this table.' });
+    }
+
+    await dbRun(
+      "INSERT OR IGNORE INTO table_participants (disco_table_id, user_id) VALUES (?, ?)",
+      [req.params.id, invitedUser.id]
+    );
+
+    res.json({ message: `Successfully added ${email} to this private session.` });
+  } catch (error) {
+    console.error('[Invite API Error]:', error);
+    res.status(500).json({ error: 'Failed to add participant.' });
+  }
+});
+
 // Helper for reproducible greek anonymity names
 function getAnonymousName(userId) {
   const greekAlphabet = [
@@ -448,8 +448,11 @@ app.get('/api/disco-tables/:id/messages', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Disco table not found.' });
     }
 
-    if (table.access_type === 'private' && table.creator_id !== req.userId) {
-      return res.status(403).json({ error: 'Forbidden: Private research table.' });
+    const isCreator = table.creator_id === req.userId;
+    const isParticipant = await dbGet("SELECT 1 FROM table_participants WHERE disco_table_id = ? AND user_id = ?", [req.params.id, req.userId]);
+
+    if (!isCreator && !isParticipant) {
+      return res.status(403).json({ error: 'Forbidden: You must join this table to access its messages.' });
     }
 
     const rawMessages = await dbAll(`
@@ -508,8 +511,11 @@ app.post('/api/disco-tables/:id/messages', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Disco table not found.' });
     }
 
-    if (table.access_type === 'private' && table.creator_id !== req.userId) {
-      return res.status(403).json({ error: 'Forbidden: Private research table access limits.' });
+    const isCreator = table.creator_id === req.userId;
+    const isParticipant = await dbGet("SELECT 1 FROM table_participants WHERE disco_table_id = ? AND user_id = ?", [req.params.id, req.userId]);
+
+    if (!isCreator && !isParticipant) {
+      return res.status(403).json({ error: 'Forbidden: You must join this table to access its messages.' });
     }
 
     await dbRun(`
@@ -540,12 +546,16 @@ async function generateAIPrediction(prompt, systemInstruction = "") {
 
   const ollamaHost = process.env.OLLAMA_HOST || "http://localhost:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5-coder:3b";
-  const ollamaTimeout = parseInt(process.env.OLLAMA_TIMEOUT) || 60000; // default to 60 seconds
+  const ollamaTimeout = parseInt(process.env.OLLAMA_TIMEOUT) || 8000; // default to 8 seconds
 
   // 1. Local Ollama Instance Runner
   if (checkOllama) {
+    const startTime = Date.now();
     try {
-      console.log(`[AI Engine] Attempting Ollama query on '${ollamaModel}' at ${ollamaHost}/api/chat`);
+      console.log(`[AI Engine] [${new Date().toISOString()}] Attempting Ollama query on '${ollamaModel}' at ${ollamaHost}/api/chat`);
+      console.log(`[AI Engine] Payload Prompt: "${prompt.substring(0, 100)}..." (Length: ${prompt.length} chars)`);
+      console.log(`[AI Engine] Payload Instruction: "${systemInstruction}"`);
+      
       const signal = AbortSignal.timeout(ollamaTimeout);
       lastOllamaCheck = now;
       const ollamaResponse = await fetch(`${ollamaHost}/api/chat`, {
@@ -562,19 +572,23 @@ async function generateAIPrediction(prompt, systemInstruction = "") {
         signal
       });
 
+      const durationMs = Date.now() - startTime;
+
       if (ollamaResponse.ok) {
         const data = await ollamaResponse.json();
         const content = data.message?.content;
         if (content) {
-          console.log("[AI Engine] Local Ollama compilation success.");
+          console.log(`[AI Engine] Local Ollama compilation success in ${durationMs}ms (${(durationMs / 1000).toFixed(2)}s).`);
+          console.log(`[AI Engine] Response Summary Preview: "${content.trim().substring(0, 100)}..."`);
           isOllamaOffline = false;
           return content.trim();
         }
       }
       isOllamaOffline = true;
-      console.log(`[AI Engine] Local Ollama returned non-ok status. Setting isOllamaOffline = true.`);
+      console.log(`[AI Engine] Local Ollama returned non-ok status (${ollamaResponse.status}) after ${durationMs}ms. Setting isOllamaOffline = true.`);
     } catch (error) {
-      console.log(`[AI Engine Fallback Level-1] Local Ollama not active. Path: ${error.message}`);
+      const durationMs = Date.now() - startTime;
+      console.log(`[AI Engine Fallback Level-1] Local Ollama not active or request timed out after ${durationMs}ms. Error: ${error.message}`);
       isOllamaOffline = true;
     }
   } else {
@@ -746,16 +760,22 @@ app.get('/api/instructor/dashboard', authMiddleware, async (req, res) => {
       FROM disco_tables dt
       LEFT JOIN messages m ON dt.id = m.disco_table_id
       LEFT JOIN users u ON dt.creator_id = u.id
+      WHERE dt.access_type = 'public' 
+         OR dt.creator_id = ? 
+         OR EXISTS (SELECT 1 FROM table_participants tp WHERE tp.disco_table_id = dt.id AND tp.user_id = ?)
       GROUP BY dt.id
       ORDER BY message_count DESC, participant_count DESC
-    `);
+    `, [req.userId, req.userId]);
 
     // Fetch all messages across muddy point boards to compute gap analysis
     const allMessages = await dbAll(`
       SELECT m.message_text, dt.title, dt.table_mode
       FROM messages m
       JOIN disco_tables dt ON m.disco_table_id = dt.id
-    `);
+      WHERE dt.access_type = 'public' 
+         OR dt.creator_id = ? 
+         OR EXISTS (SELECT 1 FROM table_participants tp WHERE tp.disco_table_id = dt.id AND tp.user_id = ?)
+    `, [req.userId, req.userId]);
 
     let gapAnalysis = null;
     const muddyMessages = allMessages.filter(m => m.table_mode === 'muddy_points');

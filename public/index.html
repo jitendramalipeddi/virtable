@@ -356,6 +356,18 @@
                 </div>
                 
                 <div class="flex items-center space-x-2 self-start sm:self-center">
+                  <!-- Invite Participant Panel (Hidden by default, shown for creator of private table) -->
+                  <div id="privateTableInviteArea" class="hidden items-center space-x-2 bg-indigo-50 border border-indigo-150 p-1.5 rounded-xl">
+                    <input type="email" id="inviteUserEmail" placeholder="Invite email..." class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-indigo-500 w-36">
+                    <button onclick="handleInviteUserSubmit()" class="bg-indigo-650 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded-lg transition text-xs cursor-pointer shadow-sm">
+                      Invite
+                    </button>
+                  </div>
+                  <!-- Table Toggle Button for Gap Panel (Visible for creator of private table or prof) -->
+                  <button onclick="toggleFacultyDashboardView()" id="workspaceDashboardToggleBtn" class="hidden bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg text-xs transition items-center space-x-1 border border-indigo-100 cursor-pointer">
+                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+                    <span>Gap Panel</span>
+                  </button>
                   <!-- Indicator lights -->
                   <div class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex items-center space-x-2 text-xs">
                     <span class="flex h-2 w-2 relative">
@@ -372,8 +384,36 @@
                 <!-- Message card loops mapped dynamically with inner SQL logic -->
               </div>
 
+              <!-- Join Prompt Area (Shown if not joined) -->
+              <div id="workspaceJoinPromptArea" class="hidden flex-grow flex-col justify-center items-center text-center p-8 space-y-6 bg-slate-50/30">
+                <div class="bg-indigo-50 text-indigo-600 p-5 rounded-full flex items-center justify-center border border-indigo-100 shadow-inner animate-pulse">
+                  <i data-lucide="plus-circle" class="w-10 h-10"></i>
+                </div>
+                <div class="max-w-md">
+                  <h4 class="text-lg font-bold text-slate-900">Join this Disco Table</h4>
+                  <p class="text-slate-550 text-xs mt-1 leading-relaxed">
+                    To maintain educational accountability, you must join this table before you can view its chat or participate in discussions.
+                  </p>
+                  
+                  <div class="my-6 bg-white border border-slate-200 p-4.5 rounded-2xl text-left shadow-sm">
+                    <h5 class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                      <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-650"></i>
+                      <span>AI Summary Preview</span>
+                    </h5>
+                    <p id="joinPromptSummaryText" class="text-xs text-slate-650 italic leading-relaxed">
+                      No summary available.
+                    </p>
+                  </div>
+
+                  <button onclick="handleJoinActiveTableSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-750 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center space-x-2 cursor-pointer">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Join Table</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- Chat Message Input Drawer Area -->
-              <div class="p-4 bg-white border-t border-slate-200">
+              <div id="workspaceChatInputArea" class="p-4 bg-white border-t border-slate-200">
                 <form id="messagePostForm" onsubmit="handleMessageSubmit(event)" class="relative flex items-center space-x-2">
                   <input type="text" id="messageTextInput" placeholder="Reply to department discussion thread..." required class="block w-full rounded-xl border border-slate-300 pr-12 pl-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500">
                   <button type="submit" class="absolute right-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition shadow flex items-center justify-center cursor-pointer">
@@ -388,6 +428,7 @@
                   </span>
                 </div>
               </div>
+            </div>
 
             </div>
 
@@ -577,12 +618,10 @@
         // Query Active Tables Directory
         fetchDiscoTables();
         
-        // Auto-show professor gap analysis dashboard if logged in as Prof
+        updateAnalyticsVisibility();
         if (isProf) {
           document.getElementById('facultyDashboardPanel').classList.remove('hidden');
           fetchInstructorStats();
-        } else {
-          document.getElementById('facultyDashboardPanel').classList.add('hidden');
         }
 
       } else {
@@ -591,6 +630,63 @@
         headerArea.innerHTML = `
           <span class="text-xs text-slate-500 font-mono tracking-wider">HTTP/1.1 SECURE PORT</span>
         `;
+        updateAnalyticsVisibility();
+      }
+      lucide.createIcons();
+    }
+
+    function updateAnalyticsVisibility() {
+      const toggleBtn = document.getElementById('dashboardToggleBtn');
+      const wsToggleBtn = document.getElementById('workspaceDashboardToggleBtn');
+      const panel = document.getElementById('facultyDashboardPanel');
+      if (!panel) return;
+
+      // Hide all by default
+      if (toggleBtn) toggleBtn.classList.add('hidden');
+      if (wsToggleBtn) wsToggleBtn.classList.add('hidden');
+
+      if (!currentUser) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      const isProf = currentUser.email === 'prof@iitb.ac.in';
+
+      if (!activeDiscoTableId) {
+        // Global view (no table active)
+        if (isProf) {
+          if (toggleBtn) toggleBtn.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      } else {
+        // Active table room
+        const activeTable = currentTablesList.find(t => t.id === activeDiscoTableId);
+        if (activeTable) {
+          const isCreator = activeTable.creator_id === currentUser.id;
+          const isPrivateMuddy = activeTable.access_type === 'private' && activeTable.table_mode === 'muddy_points';
+
+          if (isPrivateMuddy) {
+            if (isCreator) {
+              if (wsToggleBtn) {
+                wsToggleBtn.classList.remove('hidden');
+                wsToggleBtn.classList.add('flex');
+              }
+            } else {
+              panel.classList.add('hidden');
+            }
+          } else {
+            // For public or non-muddy private tables
+            if (isProf) {
+              if (wsToggleBtn) {
+                wsToggleBtn.classList.remove('hidden');
+                wsToggleBtn.classList.add('flex');
+              }
+            } else {
+              panel.classList.add('hidden');
+            }
+          }
+        }
       }
       lucide.createIcons();
     }
@@ -706,6 +802,10 @@
         const res = await fetch('/api/disco-tables', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (res.status === 401) {
+          handleLogOutUser();
+          return;
+        }
         if (!res.ok) throw new Error("Verification loop rejected details.");
         
         const tables = await res.json();
@@ -765,6 +865,15 @@
                 </p>
               </div>
 
+              ${tb.has_joined ? '' : `
+              <div class="mt-3">
+                <button onclick="handleJoinTableClick(event, ${tb.id})" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold py-2 px-3 rounded-xl text-xs transition flex justify-center items-center space-x-1 cursor-pointer">
+                  <i class="w-3.5 h-3.5" data-lucide="plus-circle"></i>
+                  <span>Join Table</span>
+                </button>
+              </div>
+              `}
+
               <div class="mt-3 flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 pt-2.5">
                 <span>Formed by: <strong class="text-slate-500 font-semibold">${tb.creator_name}</strong></span>
                 <span>Last updated: ${tb.last_spun_at ? new Date(tb.last_spun_at).toLocaleTimeString() : 'Awaiting worker'}</span>
@@ -774,6 +883,7 @@
         }).join('');
 
         lucide.createIcons();
+        updateAnalyticsVisibility();
       } catch (err) {
         showToast(err.message, true);
       }
@@ -784,15 +894,19 @@
     }
 
     // Modal Control wrappers
-    const dialog = document.getElementById('createDiscoTableModal');
+    const createDiscoTableModalElement = document.getElementById('createDiscoTableModal');
 
     function openCreateDiscoTableModal() {
-      dialog.showModal();
-      lucide.createIcons();
+      if (createDiscoTableModalElement) {
+        createDiscoTableModalElement.showModal();
+        lucide.createIcons();
+      }
     }
 
     function closeCreateDiscoTableModal() {
-      dialog.close();
+      if (createDiscoTableModalElement) {
+        createDiscoTableModalElement.close();
+      }
     }
 
     // Modal Submit handler
@@ -859,6 +973,9 @@
       activeState.classList.remove('hidden');
       activeState.classList.add('flex');
 
+      // Update analytics bar visibility when table is selected
+      updateAnalyticsVisibility();
+
       // Clear previous timer triggers
       if (workspacePollInterval) clearInterval(workspacePollInterval);
 
@@ -898,6 +1015,9 @@
       activeState.classList.add('hidden');
       activeState.classList.remove('flex');
 
+      // Update analytics bar visibility when leaving table
+      updateAnalyticsVisibility();
+
       // Refresh list
       fetchDiscoTables();
     }
@@ -934,12 +1054,49 @@
           securityBadge.className = info.access_type === 'private'
             ? 'bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1'
             : 'bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1';
+
+          // Toggle Workspace visibility based on Join status
+          const streamArea = document.getElementById('messagesContainerStream');
+          const promptArea = document.getElementById('workspaceJoinPromptArea');
+          const inputArea = document.getElementById('workspaceChatInputArea');
+          const inviteArea = document.getElementById('privateTableInviteArea');
+
+          if (info.has_joined) {
+            streamArea.classList.remove('hidden');
+            inputArea.classList.remove('hidden');
+            promptArea.classList.add('hidden');
+
+            const isCreator = info.creator_id === currentUser.id;
+            if (info.access_type === 'private' && isCreator) {
+              inviteArea.classList.remove('hidden');
+              inviteArea.classList.add('flex');
+            } else {
+              inviteArea.classList.add('hidden');
+              inviteArea.classList.remove('flex');
+            }
+          } else {
+            streamArea.classList.add('hidden');
+            inputArea.classList.add('hidden');
+            promptArea.classList.remove('hidden');
+            promptArea.classList.add('flex');
+            inviteArea.classList.add('hidden');
+            inviteArea.classList.remove('flex');
+            
+            document.getElementById('joinPromptSummaryText').textContent = info.cached_disco_summary || 'No summary has been generated for this group yet.';
+            
+            // Return early without fetching messages
+            return;
+          }
         }
 
         // Fetch thread messages
         const res = await fetch(`/api/disco-tables/${activeDiscoTableId}/messages`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (res.status === 401) {
+          handleLogOutUser();
+          return;
+        }
         if (!res.ok) throw new Error("Could not acquire table discussion messages.");
 
         const msgs = await res.json();
@@ -1048,6 +1205,10 @@
         const res = await fetch('/api/instructor/dashboard', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (res.status === 401) {
+          handleLogOutUser();
+          return;
+        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Instructor stats block failed.");
 
@@ -1139,6 +1300,71 @@
         spinner.classList.add('hidden');
         icon.classList.remove('hidden');
         btn.disabled = false;
+      }
+    }
+
+    async function handleJoinActiveTableSubmit() {
+      if (!activeDiscoTableId) return;
+      try {
+        const res = await fetch(`/api/disco-tables/${activeDiscoTableId}/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) throw new Error("Could not join table.");
+        showToast("Successfully joined the discussion table!", false);
+        
+        // Refresh tables and workspace thread
+        await fetchDiscoTables();
+        await fetchActiveWorkspaceThread();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    async function handleJoinTableClick(event, id) {
+      if (event) event.stopPropagation(); // Prevent card select trigger
+      try {
+        const res = await fetch(`/api/disco-tables/${id}/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) throw new Error("Could not join table.");
+        showToast("Successfully joined the discussion table!", false);
+        
+        // Select table and refresh directory listing
+        activeDiscoTableId = id;
+        await fetchDiscoTables();
+        await selectActiveDiscoTable(id);
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    async function handleInviteUserSubmit() {
+      const emailInput = document.getElementById('inviteUserEmail');
+      const email = emailInput.value;
+      if (!email.trim()) return;
+
+      try {
+        const res = await fetch(`/api/disco-tables/${activeDiscoTableId}/invite`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to invite user.");
+
+        showToast(data.message, false);
+        emailInput.value = '';
+      } catch (error) {
+        showToast(error.message, true);
       }
     }
 
